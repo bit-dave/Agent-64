@@ -1,5 +1,5 @@
 # AGENT 64: THE COMPLEX
-An N64-style first-person shooter for phones. You can play online with friends or offline against bots. Made by Zed Head Games.  
+An N64-style first-person shooter for phones. You can play online with friends or offline against bots. Made by Zed Head Games.
 
 ## Put it online (GitHub Pages, free)
 1. Sign in at github.com, then click **+ > New repository**. Name it something like `agent64`, set it to **Public**, and click **Create repository**.
@@ -25,13 +25,16 @@ An N64-style first-person shooter for phones. You can play online with friends o
 - **On a computer:** WASD to move, mouse to look (click to lock the pointer), Space to jump, Q or the mouse wheel to switch weapons, 1–8 to pick a weapon, Tab for scores, and hold T to talk.
 
 ## Add a new character later
-1. Put the picture in the main folder, for example `ninja.jpg`. Use a portrait picture with the face in the upper-middle, like the others. On GitHub, open the main folder, then click **Add file > Upload files**.
-2. Open `characters.js` and click the pencil icon. Add one line inside the list:
+1. Get a full-body picture of the character standing and facing forward, with the face in the upper middle, like the others. Name it something simple, for example `ninja.jpg`.
+2. In the repo, tap **Add file > Upload files** and upload the picture into the same main folder as everything else.
+3. Open `characters.js`, tap the pencil icon, and add one line at the end of the list:
    ```js
-   { code: 'NINJA', img: 'ninja.jpg', shirt: 0x222222, pants: 0x111111, hair: 0x000000 },
+   { code: 'NINJA', img: 'ninja.jpg' },
    ```
-   `code` is the name shown in the game. The colors are for the 3D body. The face is cropped from the picture automatically.
-3. Commit. The new character shows up in the lobby a minute later.
+   That's all you need. The game cuts out the face, shirt and pants from the picture by itself.
+   Optional: you can also add `hair: 'long'` (or `'short'`, `'curly'`, `'dreads'`, `'fur'`, `'hat'` or `'bald'`), plus colors like `hairColor: 0x3a2010`, `beard: 0xa0502a`, `hat: 0x6a4428` or `sleeves: 0x333333`, or `shortSleeves: true` for a T-shirt.
+   If the face comes out off-center, add `face: [left, top, width, height]` using fractions of the picture. The existing lines in `characters.js` show examples.
+4. Tap **Commit changes**. The new character shows up in the lobby a minute later.
 
 ## Notes
 - Online play connects phones directly to each other using WebRTC. Free public Nostr relays (via the Trystero library) are only used to find the room, so there's no server to pay for. On some strict mobile-carrier or work networks, two phones may not connect directly. If that happens, try Wi-Fi.

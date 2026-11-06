@@ -1,3 +1,4 @@
+import { makeKit, buildCharacter } from './chars3d.js';
 import * as THREE from './three.module.js';
 import * as L from './level.js';
 import { initAudio, sfx, playMusic, setMusicOn, audioState } from './audio.js';
@@ -33,7 +34,7 @@ const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 60); scene.add(camera);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x554433, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(0.3, 1, 0.5); scene.add(sun);
 L.buildLevel(scene); L.buildNav();
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight; const sc = Math.min(1, 260 / Math.min(w, h));
+  const w = window.innerWidth, h = window.innerHeight; const sc = window.__hiRes ? 1 : Math.min(1, 260 / Math.min(w, h));
   renderer.setSize(Math.round(w * sc), Math.round(h * sc), false); canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   camera.aspect = w / h; const hf = 78 * Math.PI / 180;
   camera.fov = w >= h ? 66 : Math.min(105, 2 * Math.atan(Math.tan(hf / 2) / camera.aspect) * 180 / Math.PI);
@@ -42,9 +43,6 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------------- MODELS ----------------
-const faceTex = CHARS.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const t = new THREE.CanvasTexture(cv);
-  t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace;
-  const im = new Image(); im.onload = () => { const w = im.width, h = im.height, s = w * 0.36; cv.getContext('2d').drawImage(im, (w - s) / 2, h * 0.16, s, s, 0, 0, 64, 64); t.needsUpdate = true; }; im.src = c.img; return t; });
 const lam = c => new THREE.MeshLambertMaterial({ color: c });
 const boxG = new THREE.BoxGeometry(1, 1, 1);
 function bx(mat, w, h, d, x, y, z, parent) { const m = new THREE.Mesh(boxG, mat); m.scale.set(w, h, d); m.position.set(x, y, z); parent.add(m); return m; }
@@ -62,25 +60,11 @@ function weaponMesh(w) {
   }
   return g;
 }
-function makeChar(ci) {
-  const c = CHARS[ci % NC]; const g = new THREE.Group();
-  const shirt = lam(c.shirt), pants = lam(c.pants), skin = lam(c.skin || 0xd8a080), hair = lam(c.hair);
-  const headMats = [hair, hair, hair, skin, new THREE.MeshLambertMaterial({ map: faceTex[ci % NC] }), hair]; // +x,-x,+y,-y,+z(front),-z
-  const head = new THREE.Mesh(boxG, headMats); head.scale.set(0.42, 0.46, 0.4); head.position.y = 1.5; g.add(head);
-  const torso = bx(shirt, 0.55, 0.62, 0.3, 0, 1.0, 0, g);
-  const legL = new THREE.Group(), legR = new THREE.Group(); legL.position.set(-0.14, 0.7, 0); legR.position.set(0.14, 0.7, 0); g.add(legL, legR);
-  bx(pants, 0.22, 0.7, 0.24, 0, -0.35, 0, legL); bx(pants, 0.22, 0.7, 0.24, 0, -0.35, 0, legR);
-  const armL = new THREE.Group(), armR = new THREE.Group(); armL.position.set(-0.36, 1.27, 0); armR.position.set(0.36, 1.27, 0); g.add(armL, armR);
-  bx(shirt, 0.16, 0.55, 0.18, 0, -0.25, 0, armL); bx(shirt, 0.16, 0.55, 0.18, 0, -0.25, 0, armR);
-  armR.rotation.x = Math.PI / 2.4; armL.rotation.x = Math.PI / 3;
-  const gunHold = new THREE.Group(); gunHold.position.set(0, -0.5, 0.05); gunHold.rotation.x = -Math.PI / 2.4 + Math.PI; armR.add(gunHold);
-  g.userData = { head, legL, legR, armL, armR, gunHold, gun: null, mats: [] };
-  g.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => g.userData.mats.push(m)); } });
-  return g;
-}
+const charKit = CHARS.map(c => makeKit(c));
+function makeChar(ci) { return buildCharacter(CHARS[ci % NC], charKit[ci % NC]); }
 function setCharGun(e) {
   const u = e.mesh.userData; if (u.gunName === e.weapon) return; if (u.gun) u.gunHold.remove(u.gun);
-  u.gun = weaponMesh(e.weapon); u.gun.scale.setScalar(1.6); u.gun.rotation.y = Math.PI; u.gunHold.add(u.gun); u.gunName = e.weapon;
+  u.gun = weaponMesh(e.weapon); u.gun.scale.setScalar(1.0); u.gun.position.z = 0.06; u.gunHold.add(u.gun); u.gunName = e.weapon;
   u.gun.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); u.mats.push(o.material); } });
 }
 function setOpacity(e, a) {
@@ -638,18 +622,20 @@ function step() {
     // entity visuals
     for (const e of G.ents.values()) {
       const m = e.mesh; m.visible = e.id !== G.myId && (e.alive || t - (e.deathT || 0) < 1.2);
-      m.position.copy(e.pos); m.rotation.y = e.yaw; const u = m.userData;
+      m.position.copy(e.pos); m.rotation.y = e.yaw + Math.PI; const u = m.userData;
       if (!e.alive) { m.rotation.x = Math.min(Math.PI / 2, (t - e.deathT) * 4) * -1; } else m.rotation.x = 0;
-      if (e.moving) e.walk += dt * 9; const sw = e.moving ? Math.sin(e.walk) * 0.7 : 0; u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = Math.PI / 3 - sw * 0.3;
-      u.armR.rotation.x = Math.PI / 2.4 + e.pitch * 0.8;
+      if (e.moving) e.walk += dt * 9; const sw = e.moving ? Math.sin(e.walk) * 0.6 : 0;
+      u.legL.rotation.x = -sw; u.legR.rotation.x = sw; u.kneeL.rotation.x = e.moving ? Math.max(0, Math.sin(e.walk + 1.4)) * 0.9 : 0; u.kneeR.rotation.x = e.moving ? Math.max(0, -Math.sin(e.walk + 1.4)) * 0.9 : 0;
+      u.armL.rotation.x = sw * 0.6; u.elbowL.rotation.x = -0.25 - (e.moving ? 0.3 : 0);
+      u.armR.rotation.x = -(1.35 + e.pitch * 0.85); u.elbowR.rotation.x = -0.12; u.armR.rotation.z = 0.0;
       setOpacity(e, e.invis > t ? 0.12 : 1);
-      u.head.material[4].color.setHex(e.inv > t && Math.floor(t * 8) % 2 ? 0xffff60 : 0xffffff);
+      u.faceMat.color.setHex(e.inv > t && Math.floor(t * 8) % 2 ? 0xffff60 : 0xffffff);
     }
     // camera
     if (p) { camera.position.set(p.pos.x, p.pos.y + (p.alive ? 1.55 + (p.onGround ? Math.sin(p.walk * 1.5) * 0.03 * (p.moving ? 1 : 0) : 0) : 0.3), p.pos.z);
       camera.rotation.set(p.pitch, p.yaw, p.alive ? 0 : 0.6, 'YXZ');
       if (shake > 0) { camera.rotation.x += (Math.random() - 0.5) * shake * 0.1; camera.rotation.y += (Math.random() - 0.5) * shake * 0.1; shake = Math.max(0, shake - dt * 2); }
-      setVM(p.weapon); vm.visible = p.alive; vmKick = Math.max(0, vmKick - dt * 8); const bob = p.moving ? Math.sin(p.walk * 1.5) : 0;
+      setVM(p.weapon); vm.visible = p.alive && !window.__hideVM; vmKick = Math.max(0, vmKick - dt * 8); const bob = p.moving ? Math.sin(p.walk * 1.5) : 0;
       vm.position.set(0.22 + bob * 0.012, -0.2 + Math.abs(bob) * 0.012 - vmKick * 0.02, -0.35 + vmKick * 0.06); vm.rotation.x = vmKick * 0.25;
       if (W[p.weapon].melee) vm.rotation.y = -vmKick * 0.8; else vm.rotation.y = 0;
       flash.material.opacity = Math.max(0, flash.material.opacity - dt * 20); flash.rotation.z = Math.random() * 3;
@@ -681,3 +667,15 @@ function updHud(p, t) {
 resize(); updGyroBtns(); musicBtns(); updMic(); show('start'); step();
 // debug/test hook
 window.__game = { G, W, L, fire, me, startBots: (n = 3, skill = 'normal') => { G.online = false; G.settings = { bots: n, skill, frag: 10, time: 5 }; G.myId = 'me'; G.isHost = true; hostStartMatch(); }, joinNet };
+// ---- lobby 3D preview of the selected agent ----
+const pv = { r: null, scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(30, 0.8, 0.1, 20), model: null, ci: -1 };
+pv.scene.add(new THREE.HemisphereLight(0xffffff, 0x445533, 2.0)); const pvl = new THREE.DirectionalLight(0xffffff, 1.2); pvl.position.set(1, 2, 3); pv.scene.add(pvl);
+pv.cam.position.set(0, 0.95, 3.75); pv.cam.lookAt(0, 0.92, 0);
+function pvLoop() {
+  requestAnimationFrame(pvLoop); if ($('lobby').classList.contains('hidden')) return;
+  if (!pv.r) { pv.r = new THREE.WebGLRenderer({ canvas: $('preview'), antialias: false, alpha: true }); pv.r.setPixelRatio(1); pv.r.setSize(120, 150, false); pv.r.outputColorSpace = THREE.SRGBColorSpace; }
+  if (pv.ci !== G.char) { if (pv.model) pv.scene.remove(pv.model); pv.model = makeChar(G.char); const e = { mesh: pv.model, weapon: 'pistol' }; setCharGun(e); pv.scene.add(pv.model); pv.ci = G.char; }
+  pv.model.rotation.y = Math.sin(now() * 0.8) * 1.2; pv.r.render(pv.scene, pv.cam);
+}
+pvLoop();
+window.__game.makeChar = makeChar; window.__game.THREE = THREE; window.__game.scene = scene;

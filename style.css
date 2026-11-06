@@ -88,3 +88,6 @@ input,select{font-family:inherit;font-size:15px;background:#000;color:#e8e0c8;bo
   .panel{padding:8px}.title{font-size:30px}.howto ul{font-size:11.5px}
   #joy{width:120px;height:120px}#bFire{width:84px;height:84px}#bJump{width:60px;height:60px;bottom:116px;right:30px}#bSwitch{right:112px}#weapon{bottom:180px}
 }
+.pvwrap{display:flex;gap:8px;align-items:center}
+#preview{flex:0 0 auto;width:120px;height:150px;image-rendering:pixelated;background:radial-gradient(#3a4a30,#0a0f08);border:3px solid #6c8a3c}
+.pvwrap .chars{flex:1;min-width:0}
