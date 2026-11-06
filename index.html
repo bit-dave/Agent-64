@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>AGENT 64: THE COMPLEX</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="dreads.jpg">
+</head><body>
+<canvas id="view"></canvas>
+
+<!-- START SCREEN -->
+<div id="start" class="screen">
+  <div class="panel wide">
+    <div class="title">AGENT <span>64</span></div>
+    <div class="subtitle">THE COMPLEX &mdash; a Zed Head Games joint</div>
+    <div class="howto">
+      <div class="phones">
+        <div class="phone portrait"><div class="scr"><div class="js"></div><div class="fb"></div><div class="jb"></div><div class="sb"></div></div><span>PORTRAIT</span></div>
+        <div class="phone landscape"><div class="scr"><div class="js"></div><div class="fb"></div><div class="jb"></div><div class="sb"></div></div><span>LANDSCAPE</span></div>
+      </div>
+      <ul>
+        <li><b>Look:</b> move your phone (motion sensors) &mdash; or drag on the right side of the screen.</li>
+        <li><b>Move:</b> joystick bottom-left (forward / back / strafe).</li>
+        <li><b>FIRE</b> bottom-right, <b>JUMP</b> just above it, <b>&#8635;</b> switches weapon.</li>
+        <li><b>&#8982;</b> re-centers your view. <b>&#127908;</b> voice chat. <b>&#9776;</b> settings / sensitivity.</li>
+        <li>Start with a knife. Grab guns, ammo, health, armor, invincibility &amp; invisibility &mdash; spots change every match.</li>
+        <li>Works in portrait <i>and</i> landscape. Desktop: WASD + mouse, Space jump, Q switch, Tab scores.</li>
+      </ul>
+    </div>
+    <div class="btns">
+      <button id="btnJoin" class="big">JOIN LOBBY</button>
+      <button id="btnBots" class="big alt">PLAY VS BOTS</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE / LOBBY -->
+<div id="lobby" class="screen hidden">
+  <div class="panel wide">
+    <div class="row head"><button class="back" data-back>&larr;</button><div class="h1" id="lobbyTitle">LOBBY</div></div>
+    <div class="h2">YOUR AGENT</div>
+    <div id="chars" class="chars"></div>
+    <div class="row"><label>Nickname <input id="nick" maxlength="12"></label></div>
+
+    <div id="onlineBox">
+      <div id="roomPick">
+        <div class="row"><button id="btnCreate">CREATE ROOM</button></div>
+        <div class="row"><input id="codeIn" maxlength="5" placeholder="CODE" autocapitalize="characters"><button id="btnEnter">JOIN WITH CODE</button></div>
+      </div>
+      <div id="roomInfo" class="hidden">
+        <div class="code">ROOM CODE: <b id="roomCode">----</b></div>
+        <div class="small" id="netStatus">Connecting...</div>
+        <div id="plist" class="plist"></div>
+        <div class="row"><button id="btnMic" class="small-btn">&#127908; Voice: OFF</button><button id="btnMicMode" class="small-btn">Mode: OPEN MIC</button></div>
+      </div>
+    </div>
+
+    <div id="hostBox">
+      <div class="h2">MATCH SETTINGS</div>
+      <div class="row"><label>Bots <select id="botCount"><option>0</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+        <label>Bot skill <select id="botSkill"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label></div>
+      <div class="row"><label>Frag limit <select id="fragLimit"><option>5</option><option selected>10</option><option>15</option><option>20</option><option value="0">None</option></select></label>
+        <label>Time <select id="timeLimit"><option value="3">3 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="0">None</option></select></label></div>
+      <div class="row"><button id="btnStart" class="big">START MATCH</button></div>
+    </div>
+    <div id="waitHost" class="small hidden">Waiting for the host to start the match...</div>
+    <div class="row"><button id="btnMusic" class="small-btn">&#9835; Music: ON</button></div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="topbar">
+    <div id="hp"><div class="bar"><i id="hpBar"></i></div><div class="bar ar"><i id="arBar"></i></div><span id="hpTxt">100</span></div>
+    <div id="timer">5:00</div>
+    <div id="score">0</div>
+    <div class="tbtns">
+      <button id="hbGyro" title="Motion look">&#128241;</button>
+      <button id="hbCenter" title="Re-center">&#8982;</button>
+      <button id="hbMic" title="Voice">&#127908;</button>
+      <button id="hbScore" title="Scores">&#9776;&#65038;</button>
+      <button id="hbMenu" title="Menu">&#9881;</button>
+    </div>
+  </div>
+  <div id="powerups"></div>
+  <div id="killfeed"></div>
+  <div id="cross">+</div>
+  <div id="msg"></div>
+  <div id="weapon"><span id="wName">KNIFE</span> <span id="wAmmo"></span></div>
+  <div id="joy"><div id="knob"></div></div>
+  <div id="lookpad"></div>
+  <button id="bFire" class="act">FIRE</button>
+  <button id="bJump" class="act">JUMP</button>
+  <button id="bSwitch" class="act">&#8635;</button>
+  <button id="bTalk" class="act hidden">TALK</button>
+  <div id="dmgflash"></div>
+  <div id="deathScr" class="hidden"><div>YOU WERE ELIMINATED</div><div class="small" id="deathBy"></div><div class="small">Respawning...</div></div>
+</div>
+
+<div id="scores" class="screen hidden"><div class="panel"><div class="h1" id="scoreTitle">SCORES</div><table id="scoreTbl"></table><div class="row" id="endBtns"><button id="btnCloseScores">CLOSE</button></div></div></div>
+
+<div id="menu" class="screen hidden"><div class="panel">
+  <div class="h1">SETTINGS</div>
+  <div class="row"><label>Look sensitivity <input type="range" id="sens" min="0.3" max="3" step="0.1" value="1.2"></label></div>
+  <div class="row"><label>Touch drag sensitivity <input type="range" id="tsens" min="0.3" max="3" step="0.1" value="1.2"></label></div>
+  <div class="row"><label><input type="checkbox" id="invertY"> Invert look up/down</label></div>
+  <div class="row"><button id="mGyro">Motion look: OFF</button><button id="mMusic">&#9835; Music: ON</button></div>
+  <div class="row"><button id="mResume" class="big">RESUME</button><button id="mQuit" class="alt">QUIT TO TITLE</button></div>
+</div></div>
+
+<div id="toast"></div>
+<script type="module" src="main.js"></script>
+</body></html>
