@@ -40,3 +40,15 @@ An N64-style first-person shooter for phones. You can play online with friends o
 - Online play connects phones directly to each other using WebRTC. Free public Nostr relays (via the Trystero library) are only used to find the room, so there's no server to pay for. On some strict mobile-carrier or work networks, two phones may not connect directly. If that happens, try Wi-Fi.
 - The music and sound effects are made in code. The theme is original 60s spy-style music.
 - The map, called "The Complex", is fictional.
+
+## Controls (Settings → Control Configuration, also on start screen & lobby; saved on device)
+1. **Motion look** – left stick moves, tilt phone (gyro) + drag right side to look. FIRE / JUMP / switch buttons.
+2. **Dual stick** – left stick moves, right stick looks. Adjustable sensitivity + invert Y. Buttons sit above/left of the right stick (portrait & landscape).
+3. **Bluetooth controller** (Gamepad API, standard mapping – Xbox / PlayStation / MFi):
+   - Left stick move, right stick look
+   - RT / R2 fire, A / Cross jump
+   - Y / Triangle or RB next weapon, LB previous weapon
+   - Start = menu / scoreboard
+   - Menus: D-pad or left stick to move, A select, B back, left/right to change options
+   - Touch controls hide while a pad is active; connecting a pad offers to switch automatically.
+   - Settings: sensitivity, invert Y, deadzone.

@@ -6,14 +6,14 @@ export const ramps = [];
 export const props = []; // {min:[x,y,z], max:[x,y,z]}
 const propGrid = new Map();
 export const ROOMS = [];
-const theme = {
-  hub:     { floor: 'redcon', wall: 'cinder', ceil: 'concrete', tint: [1.0, 0.97, 0.92] },
-  storage: { floor: 'concrete', wall: 'cinder', ceil: 'corr', tint: [0.95, 0.97, 1.0] },
-  machine: { floor: 'concrete', wall: 'concrete', ceil: 'concrete', tint: [0.9, 1.0, 0.95] },
-  basement:{ floor: 'dark', wall: 'dark', ceil: 'dark', tint: [1.25, 0.82, 0.45] },
-  clean:   { floor: 'tile', wall: 'white', ceil: 'dropceil', tint: [1.0, 1.0, 1.0] },
-  long:    { floor: 'tile', wall: 'white', ceil: 'dropceil', tint: [0.95, 1.0, 0.97] },
-  prep:    { floor: 'redcon', wall: 'cinder', ceil: 'concrete', tint: [1.0, 0.95, 0.9] },
+const theme = { // GoldenEye-style: concrete walls, tile wainscot, lattice ceilings
+  hub:     { floor: 'ftile', wall: 'concrete', wains: 'wtile', ceil: 'lattice', tint: [1.0, 0.97, 0.92] },
+  storage: { floor: 'slab', wall: 'gconcrete', wains: 'gtile', ceil: 'lattice', tint: [0.9, 1.0, 0.95] },
+  machine: { floor: 'slab', wall: 'concrete', wains: null, ceil: 'lattice', tint: [0.95, 0.97, 1.0] },
+  basement:{ floor: 'dark', wall: 'dark', wains: null, ceil: 'dark', tint: [1.25, 0.85, 0.5] },
+  clean:   { floor: 'btile', wall: 'gconc2', wains: 'wtile', ceil: 'lattice', tint: [0.95, 1.0, 1.05] },
+  long:    { floor: 'btile', wall: 'teal', wains: 'wtile', ceil: 'lattice', tint: [0.95, 1.02, 1.02] },
+  prep:    { floor: 'ftile', wall: 'concrete', wains: 'wtile', ceil: 'lattice', tint: [1.0, 0.96, 0.9] },
 };
 function room(name, x0, z0, x1, z1, f, c, th) {
   ROOMS.push({ name, x0, z0, x1, z1, th });
@@ -60,29 +60,46 @@ export function roomName(x, z) { for (let i = ROOMS.length - 1; i >= 0; i--) { c
 // ---------- TEXTURES (32x32 procedural, nearest filtered) ----------
 function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function makeTex(kind) {
-  const S = 32, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d'); const r = rnd(kind.length * 997 + 13);
-  const fill = (c) => { g.fillStyle = c; g.fillRect(0, 0, S, S); };
-  const speck = (n, cols) => { for (let i = 0; i < n; i++) { g.fillStyle = cols[Math.floor(r() * cols.length)]; g.fillRect(Math.floor(r() * S), Math.floor(r() * S), 1 + Math.floor(r() * 2), 1); } };
+  const S = 64, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d'); const r = rnd(kind.length * 997 + 13);
+  const fill = c => { g.fillStyle = c; g.fillRect(0, 0, S, S); };
+  const blot = (n, cols, sz = 6, a = 0.25) => { for (let i = 0; i < n; i++) { g.globalAlpha = a; g.fillStyle = cols[Math.floor(r() * cols.length)]; const w = 2 + r() * sz; g.beginPath(); g.ellipse(r() * S, r() * S, w, w * (0.5 + r()), r() * 3, 0, 7); g.fill(); } g.globalAlpha = 1; };
+  const tiles = (n, base, grout, var_ = ['#fff', '#000'], gw = 1.5) => { fill(grout); const t = S / n;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { g.fillStyle = base; g.fillRect(x * t + gw / 2, y * t + gw / 2, t - gw, t - gw);
+      g.globalAlpha = 0.07; g.fillStyle = var_[Math.floor(r() * 2)]; g.fillRect(x * t + gw / 2, y * t + gw / 2, t - gw, t - gw);
+      g.globalAlpha = 0.18; g.fillStyle = '#fff'; g.fillRect(x * t + gw / 2, y * t + gw / 2, t - gw, 1.5); g.globalAlpha = 1; } blot(10, ['#000', '#fff'], 5, 0.04); };
   switch (kind) {
-    case 'redcon': fill('#7d4a3c'); speck(160, ['#6e3f33', '#8c5646', '#734437', '#94604f']); break;
-    case 'concrete': fill('#8a8a86'); speck(180, ['#7a7a76', '#969690', '#80807b', '#a09f99']); break;
-    case 'dark': fill('#4c4a46'); speck(180, ['#3e3c39', '#5a5853', '#45433f']); break;
-    case 'cinder': fill('#d8d6cf'); speck(80, ['#cbc8c0', '#e2e0da']); g.fillStyle = '#a8a59c';
-      for (let y = 0; y < S; y += 8) { g.fillRect(0, y, S, 1); const off = (y / 8) % 2 ? 8 : 0; for (let x = off; x < S; x += 16) g.fillRect(x, y, 1, 8); } break;
-    case 'white': fill('#e6e4dc'); speck(50, ['#dddad2', '#eeece6']); g.fillStyle = '#c8c5bb'; g.fillRect(0, 31, S, 1); g.fillRect(15, 0, 1, S); break;
-    case 'tile': fill('#d6caa8'); speck(70, ['#cbbf9c', '#ddd2b4']); g.fillStyle = '#a99c7c'; for (let i = 0; i < S; i += 16) { g.fillRect(i, 0, 1, S); g.fillRect(0, i, S, 1); } break;
-    case 'dropceil': fill('#ecebe6'); speck(60, ['#cfcdc6', '#d9d8d2']); g.fillStyle = '#9b9a95'; g.fillRect(0, 0, S, 1); g.fillRect(0, 0, 1, S); g.fillStyle = '#ffffff'; g.fillRect(10, 10, 12, 12); g.fillStyle = '#fffbe8'; g.fillRect(12, 12, 8, 8); break;
-    case 'corr': fill('#7d828a'); for (let x = 0; x < S; x += 4) { g.fillStyle = '#9aa0a8'; g.fillRect(x, 0, 2, S); } break;
-    case 'metal': fill('#9097a0'); speck(40, ['#848b94', '#a1a8b0']); g.fillStyle = '#6c727a'; g.fillRect(0, 0, S, 1); g.fillRect(0, 0, 1, S); g.fillStyle = '#5a6068'; g.fillRect(3, 3, 1, 1); g.fillRect(28, 3, 1, 1); g.fillRect(3, 28, 1, 1); g.fillRect(28, 28, 1, 1); break;
-    case 'crate': fill('#9a7140'); g.fillStyle = '#6e4e28'; g.fillRect(0, 0, S, 2); g.fillRect(0, 30, S, 2); g.fillRect(0, 0, 2, S); g.fillRect(30, 0, 2, S); for (let i = 0; i < S; i++) g.fillRect(i, i, 2, 1); break;
-    case 'cage': g.clearRect(0, 0, S, S); g.fillStyle = '#b8bcc0'; for (let i = 0; i < S; i += 4) for (let k = 0; k < S; k++) { g.fillRect((i + k) % S, k, 1, 1); g.fillRect((i - k + S * 4) % S, k, 1, 1); } g.fillRect(0, 0, S, 1); break;
-    case 'hazard': for (let i = -S; i < S * 2; i += 8) { g.fillStyle = '#e8c020'; g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 4, 0); g.lineTo(i + 4 + S, S); g.lineTo(i + S, S); g.fill(); } g.globalCompositeOperation = 'destination-over'; fill('#151515'); break;
-    case 'bag': fill('#eeeeea'); speck(60, ['#dcdcd6', '#f8f8f4']); g.fillStyle = '#c8c8c0'; g.fillRect(0, 15, S, 1); break;
-    case 'panel': fill('#9a9c98'); g.fillStyle = '#7a7c78'; g.fillRect(2, 2, 28, 28); g.fillStyle = '#a8aaa6'; g.fillRect(4, 4, 24, 24); g.fillStyle = '#333'; g.fillRect(24, 14, 2, 4); g.fillStyle = '#d02020'; g.fillRect(8, 8, 3, 3); g.fillStyle = '#20c020'; g.fillRect(13, 8, 3, 3); break;
-    case 'mat': fill('#1c1c1c'); speck(40, ['#262626', '#121212']); g.fillStyle = '#d8b820'; g.fillRect(0, 0, S, 2); g.fillRect(0, 30, S, 2); break;
-    case 'door': fill('#8a8f96'); g.fillStyle = '#6f747a'; g.fillRect(15, 0, 2, S); g.fillStyle = '#c8ccd0'; g.fillRect(11, 14, 2, 4); g.fillRect(19, 14, 2, 4); g.fillStyle = '#9ea3aa'; g.fillRect(3, 3, 9, 8); g.fillRect(20, 3, 9, 8); break;
+    case 'concrete': fill('#7d766a'); blot(60, ['#6c665b', '#8b8476', '#746d61', '#958e80'], 8, 0.25); break;
+    case 'gconcrete': fill('#5f6a62'); blot(70, ['#4e5951', '#6c776f', '#58635b'], 6, 0.3); break;
+    case 'gconc2': fill('#8a8e92'); blot(60, ['#7a7e83', '#9a9ea2', '#83878b'], 9, 0.25); break;
+    case 'teal': fill('#5a9a98'); { const gr = g.createLinearGradient(0, 0, 0, S); gr.addColorStop(0, 'rgba(255,255,255,0.15)'); gr.addColorStop(1, 'rgba(0,0,0,0.2)'); g.fillStyle = gr; g.fillRect(0, 0, S, S); } blot(30, ['#4d8a88', '#68aaa8'], 6, 0.2); break;
+    case 'dark': fill('#4c4a46'); blot(70, ['#3e3c39', '#5a5853', '#45433f'], 6, 0.3); break;
+    case 'wtile': tiles(4, '#dcdcd8', '#4a4a48'); break;
+    case 'gtile': tiles(4, '#9aa69c', '#3a423c'); break;
+    case 'ftile': tiles(2, '#a8b0b4', '#33383a', ['#fff', '#000'], 1.2); break;
+    case 'btile': tiles(4, '#8fa2b2', '#3c4650'); break;
+    case 'slab': tiles(1, '#a39a88', '#4a463e', ['#fff', '#000'], 1.2); blot(30, ['#8f8676', '#b0a796'], 10, 0.15); break;
+    case 'lattice': fill('#101214'); g.fillStyle = '#3a3e42'; for (let i = 0; i < S; i += 16) { g.fillRect(i, 0, 2, S); g.fillRect(0, i, S, 2); } g.fillStyle = '#24272a'; for (let i = 0; i < S; i += 16) for (let k = 0; k < S; k += 16) g.fillRect(i + 5, k + 5, 8, 8); break;
+    case 'redcon': fill('#7d4a3c'); blot(60, ['#6e3f33', '#8c5646'], 6, 0.3); break;
+    case 'cinder': fill('#d8d6cf'); g.fillStyle = '#a8a59c'; for (let y = 0; y < S; y += 16) { g.fillRect(0, y, S, 2); const off = (y / 16) % 2 ? 16 : 0; for (let x = off; x < S; x += 32) g.fillRect(x, y, 2, 16); } break;
+    case 'white': fill('#e6e4dc'); blot(20, ['#dddad2', '#eeece6'], 8, 0.3); break;
+    case 'tile': tiles(4, '#d6caa8', '#8a7e60'); break;
+    case 'dropceil': fill('#ecebe6'); g.fillStyle = '#9b9a95'; g.fillRect(0, 0, S, 2); g.fillRect(0, 0, 2, S); break;
+    case 'corr': fill('#7d828a'); for (let x = 0; x < S; x += 8) { g.fillStyle = '#9aa0a8'; g.fillRect(x, 0, 4, S); } break;
+    case 'metal': fill('#8a9098'); blot(20, ['#7a8088', '#9aa0a8'], 6, 0.25); g.fillStyle = '#5c626a'; g.fillRect(0, 0, S, 2); g.fillRect(0, 0, 2, S); for (let y = 8; y < S; y += 16) { g.fillStyle = '#6a7078'; g.fillRect(0, y, S, 3); } break;
+    case 'grate': fill('#2a2c2e'); g.fillStyle = '#6a6e72'; for (let i = 0; i < S; i += 8) { g.fillRect(i, 0, 3, S); g.fillRect(0, i, S, 2); } break;
+    case 'crate': fill('#8a6a40'); g.fillStyle = '#5e4424'; g.fillRect(0, 0, S, 4); g.fillRect(0, S - 4, S, 4); g.fillRect(0, 0, 4, S); g.fillRect(S - 4, 0, 4, S); g.save(); g.translate(S / 2, S / 2); g.rotate(Math.PI / 4); g.fillRect(-45, -2, 90, 4); g.restore(); break;
+    case 'cage': g.clearRect(0, 0, S, S); g.strokeStyle = '#b8bcc0'; g.lineWidth = 1.5; for (let i = -S; i < S * 2; i += 8) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + S, S); g.stroke(); g.beginPath(); g.moveTo(i, 0); g.lineTo(i - S, S); g.stroke(); } g.fillStyle = '#b8bcc0'; g.fillRect(0, 0, S, 3); break;
+    case 'hazard': fill('#151515'); g.fillStyle = '#e8c020'; for (let i = -S; i < S * 2; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 8, 0); g.lineTo(i + 8 + S, S); g.lineTo(i + S, S); g.fill(); } break;
+    case 'bag': fill('#eeeeea'); blot(20, ['#d8d8d2', '#fafaf6'], 8, 0.4); g.fillStyle = '#c8c8c0'; g.fillRect(0, 31, S, 2); break;
+    case 'panel': fill('#8e9294'); g.fillStyle = '#6e7274'; g.fillRect(4, 4, 56, 56); g.fillStyle = '#9ea2a4'; g.fillRect(7, 7, 50, 50); g.fillStyle = '#333'; g.fillRect(48, 28, 4, 8); g.fillStyle = '#c03020'; g.fillRect(14, 14, 6, 6); g.fillStyle = '#30a030'; g.fillRect(24, 14, 6, 6); break;
+    case 'mat': fill('#1c1c1c'); g.fillStyle = '#c8a820'; g.fillRect(0, 0, S, 4); g.fillRect(0, S - 4, S, 4); break;
+    case 'door': { fill('#8a9096'); const gr = g.createLinearGradient(0, 0, S, 0); gr.addColorStop(0, '#9aa0a6'); gr.addColorStop(0.5, '#7c8288'); gr.addColorStop(1, '#9aa0a6'); g.fillStyle = gr; g.fillRect(0, 0, S, S);
+      g.fillStyle = '#4a4f54'; g.fillRect(31, 0, 2, S); g.fillRect(0, 0, S, 2); g.fillStyle = '#c8ccd0'; g.fillRect(25, 30, 3, 10); g.fillRect(36, 30, 3, 10); g.fillStyle = '#3a3e42'; g.fillRect(24, 40, 5, 1); g.fillRect(35, 40, 5, 1); break; }
+    case 'window': { fill('#2a2e30'); const gr = g.createLinearGradient(0, 0, S, S); gr.addColorStop(0, '#d8e4e0'); gr.addColorStop(0.6, '#a8b8b4'); gr.addColorStop(1, '#7a8a88'); g.fillStyle = gr; g.fillRect(4, 4, S - 8, S - 8); g.fillStyle = '#2a2e30'; g.fillRect(30, 0, 4, S); break; }
+    case 'light': fill('#fffef4'); break;
   }
-  const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+  if (!['lattice', 'cage', 'hazard', 'light', 'window'].includes(kind)) { const c2 = document.createElement('canvas'); c2.width = c2.height = S; const g2 = c2.getContext('2d'); g2.filter = 'blur(0.6px)'; g2.drawImage(cv, 0, 0); g.clearRect(0, 0, S, S); g.drawImage(c2, 0, 0); }
+  const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 2;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const texCache = {};
@@ -93,8 +110,13 @@ const lamps = [];
 for (const r of ROOMS) { const w = r.x1 - r.x0, d = r.z1 - r.z0; const nx = Math.max(1, Math.round(w / 6)), nz = Math.max(1, Math.round(d / 6));
   for (let a = 0; a < nx; a++) for (let b = 0; b < nz; b++) lamps.push([r.x0 + (a + 0.5) * w / nx, r.z0 + (b + 0.5) * d / nz]); }
 function lightAt(x, y, z) {
-  let best = 0; for (const l of lamps) { const dx = x - l[0], dz = z - l[1]; const d = Math.sqrt(dx * dx + dz * dz); const v = Math.max(0, 1 - d / 7); if (v > best) best = v; }
-  return 0.55 + 0.45 * best;
+  let best = 0; for (const l of lamps) { const dx = x - l[0], dz = z - l[1]; const d = Math.sqrt(dx * dx + dz * dz); const v = Math.max(0, 1 - d / 6.5); best += v * v * 0.8; }
+  best = Math.min(1, best);
+  // ambient occlusion: darker near walls and toward the floor
+  const c = cellAt(x, z); let ao = 1;
+  if (c) { const f = floorAt(x, z), cl = ceilAt(x, z); const h = (y - f) / Math.max(1, cl - f); ao = 0.72 + 0.28 * Math.min(1, Math.max(0, h * 1.6));
+    let near = 0; for (const [ox, oz] of [[0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6]]) if (!cellAt(x + ox, z + oz)) near++; if (y - f < 0.05) ao *= 1 - near * 0.1; }
+  return (0.38 + 0.62 * best) * ao;
 }
 class Builder {
   constructor() { this.g = {}; }
@@ -167,7 +189,12 @@ export function buildLevel(scene) {
       let e0, e1; if (dx === 1) { e0 = [x + 1, z + 1]; e1 = [x + 1, z]; } else if (dx === -1) { e0 = [x, z]; e1 = [x, z + 1]; } else if (dz === 1) { e0 = [x, z + 1]; e1 = [x + 1, z + 1]; } else { e0 = [x + 1, z]; e1 = [x, z]; }
       const fy0 = Math.min(y00, y01), cyT = Math.max(cy0, cy1);
       const sh = dx !== 0 ? 0.85 : 0.72;
-      const wall = (yb, yt, key) => { if (yt - yb < 0.01) return; B.quad(key, [e0[0], yb, e0[1]], [e1[0], yb, e1[1]], [e1[0], yt, e1[1]], [e0[0], yt, e0[1]], 2, sh, T.tint); };
+      const q = (yb, yt, key) => { if (yt - yb < 0.01) return; B.quad(key, [e1[0], yb, e1[1]], [e0[0], yb, e0[1]], [e0[0], yt, e0[1]], [e1[0], yt, e1[1]], 2, sh, T.tint); };
+      const wall = (yb, yt, key) => { // tile wainscot below 1.25m, concrete above; split for smoother vertex lighting
+        const wy = c.f + 1.25; const cuts = [yb]; if (T.wains && wy > yb && wy < yt) cuts.push(wy); const mid = (Math.max(yb, wy) + yt) / 2; if (yt - yb > 3 && mid > cuts[cuts.length - 1] + 0.5) cuts.push(mid); cuts.push(yt);
+        for (let k = 0; k < cuts.length - 1; k++) q(cuts[k], cuts[k + 1], T.wains && cuts[k + 1] <= wy + 0.001 ? T.wains : key);
+        if (T.wains && wy > yb && wy < yt) { const n = [e1[1] - e0[1], 0, e0[0] - e1[0]]; const o = 0.03; // tile cap trim
+          B.quad('none|#9a9a96', [e1[0] + n[0] * o, wy, e1[1] + n[2] * o], [e0[0] + n[0] * o, wy, e0[1] + n[2] * o], [e0[0] + n[0] * o, wy + 0.06, e0[1] + n[2] * o], [e1[0] + n[0] * o, wy + 0.06, e1[1] + n[2] * o], 1, sh, T.tint); } };
       if (!n) { wall(fy0, cyT, T.wall); continue; }
       const nc = n.ramp ? ceilAt(x + dx + 0.5, z + dz + 0.5) : n.c; const nf = n.ramp ? Math.min(floorAt(x + dx + 0.5, z + dz + 0.01), floorAt(x + dx + 0.5, z + dz + 0.99)) : n.f;
       if (nc < cyT) wall(nc, cyT, T.wall);
@@ -231,6 +258,58 @@ export function buildLevel(scene) {
   B.cyl('none|#c8ccd0', -27, 0.25, 33, 0.7, 1.4, 10); addProp(-27.7, 0, 32.3, -26.3, 1.65, 33.7);
   P('none|#888c90', -30.5, 0, 36.2, -28, 0.9, 37.3); P('white', -24, 1.2, 30, -23.1, 2, 30.1, false);
   P('none|#f0f0f0', -1, 0, 3.8, 0.02, 2.4, 2.2, false);
+  // ================= GoldenEye-style detail pass =================
+  const box = (key, x0, y0, z0, x1, y1, z1, tint) => B.box(key, Math.min(x0, x1), y0, Math.min(z0, z1), Math.max(x0, x1), y1, Math.max(z0, z1), 1, tint);
+  // door frames on every doorway (steel jambs + header), both faces of the wall
+  const frame = (axis, at, a0, a1, top, y0 = 0) => { const t = 0.14, d = 0.12, k = 'none|#6e747a';
+    if (axis === 'x') { box(k, at - d, y0, a0 - t, at + d, y0 + top, a0); box(k, at - d, y0, a1, at + d, y0 + top, a1 + t); box(k, at - d, y0 + top - 0.02, a0 - t, at + d, y0 + top + 0.18, a1 + t); }
+    else { box(k, a0 - t, y0, at - d, a0, y0 + top, at + d); box(k, a1, y0, at - d, a1 + t, y0 + top, at + d); box(k, a0 - t, y0 + top - 0.02, at - d, a1 + t, y0 + top + 0.18, at + d); } };
+  frame('x', 10, 3, 6, 2.95); frame('x', 14, 3, 6, 2.95); frame('x', 34, -3, 0, 2.95); frame('x', 38, -3, 0, 2.95);
+  frame('z', 10, 3, 6, 2.95); frame('z', 14, 3, 6, 2.95); frame('z', 44, 0, 3, 2.95); frame('z', 48, 0, 3, 2.95);
+  frame('z', 48, -28, -25, 2.95); frame('z', 38, -28, -25, 2.95); frame('x', 0, 2, 4, 2.95); frame('z', 4, 44, 47, 2.95);
+  frame('z', 30, -26, -24, 2.95); frame('z', 14, 31, 34, 2.95);
+  // closed grey steel double doors (decor) set into walls, with frames
+  const ddoor = (axis, at, a0, side, y0 = 0) => { const w = 2.0, h = 2.4, o = side * 0.02; // side: which way the room is (+1/-1)
+    if (axis === 'z') { B.quad('door', [a0, y0, at + o], [a0 + w, y0, at + o], [a0 + w, y0 + h, at + o], [a0, y0 + h, at + o].map(v => v), 2, 0.95, [1, 1, 1]);
+      if (side < 0) {} frame('z', at, a0, a0 + w, h, y0); }
+    else { B.quad('door', [at + o, y0, a0 + w], [at + o, y0, a0], [at + o, y0 + h, a0], [at + o, y0 + h, a0 + w], 2, 0.95, [1, 1, 1]); frame('x', at, a0, a0 + w, h, y0); } };
+  const dq = (pts) => B.quad('door', ...pts, 2, 0.95, [1, 1, 1]);
+  // facing +z (wall at low z), facing -z (wall at high z), facing +x, facing -x
+  const doorZp = (z, x0, y0 = 0) => { dq([[x0, y0, z + 0.02], [x0 + 2, y0, z + 0.02], [x0 + 2, y0 + 2.4, z + 0.02], [x0, y0 + 2.4, z + 0.02]]); frame('z', z, x0, x0 + 2, 2.4, y0); };
+  const doorZm = (z, x0, y0 = 0) => { dq([[x0 + 2, y0, z - 0.02], [x0, y0, z - 0.02], [x0, y0 + 2.4, z - 0.02], [x0 + 2, y0 + 2.4, z - 0.02]]); frame('z', z, x0, x0 + 2, 2.4, y0); };
+  const doorXp = (x, z0, y0 = 0) => { dq([[x + 0.02, y0, z0 + 2], [x + 0.02, y0, z0], [x + 0.02, y0 + 2.4, z0], [x + 0.02, y0 + 2.4, z0 + 2]]); frame('x', x, z0, z0 + 2, 2.4, y0); };
+  const doorXm = (x, z0, y0 = 0) => { dq([[x - 0.02, y0, z0], [x - 0.02, y0, z0 + 2], [x - 0.02, y0 + 2.4, z0 + 2], [x - 0.02, y0 + 2.4, z0]]); frame('x', x, z0, z0 + 2, 2.4, y0); };
+  doorZp(0, 4.1); doorZp(-6, 29.5); doorXm(48, -0.5); doorZm(63, -11); doorXp(-4, 30); doorZm(63, 2); doorXp(-34, 55); doorZm(32, 40, -3); doorZp(30, -30);
+  // fluorescent strip lights on ceilings (merged, emissive)
+  for (const r of ROOMS) { const w = r.x1 - r.x0, d = r.z1 - r.z0; const cy = cellAt(r.x0 + 0.5, r.z0 + 0.5); if (!cy || cy.ramp) continue; const y = cy.c - 0.04;
+    const along = w >= d; const n = Math.max(1, Math.round((along ? w : d) / 5)); const m = Math.max(1, Math.round((along ? d : w) / 5));
+    for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) { const cx = r.x0 + (along ? (i + 0.5) * w / n : (j + 0.5) * w / m), cz = r.z0 + (along ? (j + 0.5) * d / m : (i + 0.5) * d / n);
+      const lx = along ? 1.2 : 0.18, lz = along ? 0.18 : 1.2; box('none|#3a3c3e', cx - lx / 2 - 0.05, y - 0.06, cz - lz / 2 - 0.05, cx + lx / 2 + 0.05, y, cz + lz / 2 + 0.05);
+      B.quad(cy.th === 'basement' ? 'none|#ffb040' : 'light', [cx - lx / 2, y - 0.065, cz - lz / 2], [cx + lx / 2, y - 0.065, cz - lz / 2], [cx + lx / 2, y - 0.065, cz + lz / 2], [cx - lx / 2, y - 0.065, cz + lz / 2], 1, 1.6, [1, 1, 1]); } }
+  // storage bay: high beams, catwalk with railings along the north wall, windows, steel stair, dark tanks on legs
+  for (let x = 16; x < 34; x += 4) box('none|#3e4448', x, 6.3, -6, x + 0.35, 6.75, 14);
+  box('none|#3e4448', 14, 6.4, 4, 34, 6.7, 4.35);
+  box('grate', 14, 3.5, -6, 34, 3.65, -4.6); for (let x = 14.2; x < 34; x += 2) box('none|#2e3236', x, 3.65, -4.68, x + 0.07, 4.65, -4.6);
+  box('none|#2e3236', 14, 4.6, -4.68, 34, 4.67, -4.6); box('none|#2e3236', 14, 4.1, -4.68, 34, 4.14, -4.6);
+  for (let x = 16; x < 34; x += 3) box('none|#2e3236', x, 0, -4.75, x + 0.12, 3.5, -4.63);
+  for (let x = 15; x < 33; x += 3) B.quad('window', [x, 4.3, -5.98], [x + 1.8, 4.3, -5.98], [x + 1.8, 5.6, -5.98], [x, 5.6, -5.98], 1.8, 1.1, [1, 1, 1]);
+  // stair up to catwalk (east end), solid underneath so nobody walks through it
+  for (let k = 0; k < 12; k++) { const y = 0.29 * (k + 1), x = 20 + k * 0.6; box('grate', x, y - 0.06, -5.9, x + 0.6, y, -4.65); }
+  box('none|#2e3236', 20, 0, -4.7, 27.2, 0.1, -4.6); for (let k = 0; k <= 12; k += 3) box('none|#2e3236', 20 + k * 0.6, 0.29 * k, -4.68, 20.06 + k * 0.6, 0.29 * k + 1.0, -4.6);
+  addProp(20, 0, -6, 27.2, 3.5, -4.6);
+  for (const [tx, tz] of [[16.6, 6.6], [19.2, 7.4]]) { B.cyl('none|#1c1e20', tx, 1.1, tz, 1.0, 3.2, 8); B.cyl('none|#2a2c2e', tx, 4.3, tz, 0.3, 0.3, 6);
+    for (const [ox, oz] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) box('none|#222', tx + ox - 0.07, 0, tz + oz - 0.07, tx + ox + 0.07, 1.15, tz + oz + 0.07);
+    addProp(tx - 0.95, 0, tz - 0.95, tx + 0.95, 4.3, tz + 0.95); }
+  // pipes: red/grey runs under ceilings (pump room, white corridor, back hallway)
+  for (const [z, col] of [[-5.3, '#8a2a22'], [-4.8, '#7a8288'], [3.4, '#8a2a22']]) B.cyl('none|' + col, 38, 3.25, z, 0.12, 10, 6, [1, 1, 1], 'x');
+  for (const [x, col] of [[-3.3, '#8a2a22'], [-2.8, '#6a7278'], [5.3, '#8a2a22']]) {     for (let z = 14; z < 44; z += 1) B.box('none|' + col, x - 0.1, 3.18, z, x + 0.1, 3.38, z + 1.0); }
+  for (let z = 2; z < 30; z += 1) B.box('none|#7a2a22', -25.95, 2.7, z, -25.8, 2.85, z + 1);
+  // long gallery: teal partition stalls along the south wall (low, cover)
+  for (const x of [-30, -24, -4]) { box('teal', x, 0, 60.5, x + 0.12, 2.2, 63); addProp(x, 0, 60.5, x + 0.12, 2.2, 63); }
+  // clean corridor: wall radiators/handrails like the reference
+  for (const z of [16, 24, 32, 40]) { box('none|#c8ccd0', 5.85, 0.3, z, 6, 0.9, z + 3); box('none|#5a6066', 5.8, 1.0, z - 0.5, 5.95, 1.06, z + 3.5); }
+  // hub: tall atrium feel - upper walkway ledge with window openings on the east wall
+  box('none|#6a6e72', 8.6, 3.0, 0, 10, 3.2, 10); for (let z = 0.5; z < 10; z += 1.6) B.quad('window', [9.98, 3.4, z], [9.98, 3.4, z + 1], [9.98, 4.2, z + 1], [9.98, 4.2, z], 1, 1.1, [1, 1, 1]);
   B.build(scene);
 }
 // ---------- spawn points ----------

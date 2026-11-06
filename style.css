@@ -1,6 +1,6 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Courier New",monospace;color:#e8e0c8;touch-action:none;overscroll-behavior:none}
-#view{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelated;image-rendering:crisp-edges}
+#view{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:auto}
 .hidden{display:none!important}
 .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(#202a20,#050805);z-index:20;overflow-y:auto;padding:10px}
 #scores,#menu{background:rgba(0,0,0,.7)}
@@ -91,3 +91,16 @@ input,select{font-family:inherit;font-size:15px;background:#000;color:#e8e0c8;bo
 .pvwrap{display:flex;gap:8px;align-items:center}
 #preview{flex:0 0 auto;width:120px;height:150px;image-rendering:pixelated;background:radial-gradient(#3a4a30,#0a0f08);border:3px solid #6c8a3c}
 .pvwrap .chars{flex:1;min-width:0}
+
+#rjoy{position:absolute;right:18px;bottom:18px;width:130px;height:130px;border-radius:50%;border:3px solid rgba(255,255,255,.45);background:rgba(0,0,0,.2);display:none;pointer-events:auto}
+#rknob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,200,120,.45)}
+body.dual #rjoy{display:block} body.dual #lookpad{display:none}
+body.dual #bFire{right:160px;bottom:40px;width:80px;height:80px}
+body.dual #bJump{right:34px;bottom:162px;width:62px;height:62px}
+body.dual #bSwitch{right:112px;bottom:162px;width:54px;height:54px}
+body.dual #bTalk{right:250px;bottom:40px}
+body.dual #weapon{bottom:236px}
+@media (orientation:portrait){ body.dual #rjoy{width:116px;height:116px;bottom:28px} body.dual #bFire{right:146px;bottom:40px;width:72px;height:72px} body.dual #bJump{bottom:156px;right:30px;width:56px;height:56px} body.dual #bSwitch{right:100px;bottom:156px;width:50px;height:50px} body.dual #bTalk{right:226px;bottom:44px} body.dual #weapon{bottom:222px} }
+body.padon #joy,body.padon #rjoy,body.padon #lookpad,body.padon .act{display:none!important}
+#padPrompt{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:60;background:#11160f;border:3px solid #e8c040;padding:14px;text-align:center;font-weight:bold}
+.padfocus{outline:3px solid #ffe060!important;outline-offset:2px}

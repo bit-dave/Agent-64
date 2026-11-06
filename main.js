@@ -29,12 +29,12 @@ const ITEMKINDS = { health: 'HEALTH', armor: 'BODY ARMOR', ammo: 'AMMO', inv: 'I
 const canvas = $('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1); renderer.outputColorSpace = THREE.SRGBColorSpace;
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0x101010); scene.fog = new THREE.Fog(0x101010, 6, 34);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x101010); scene.fog = new THREE.Fog(0x101010, 8, 42);
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 60); scene.add(camera);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x554433, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(0.3, 1, 0.5); scene.add(sun);
 L.buildLevel(scene); L.buildNav();
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight; const sc = window.__hiRes ? 1 : Math.min(1, 260 / Math.min(w, h));
+  const w = window.innerWidth, h = window.innerHeight; const sc = window.__hiRes ? 1 : Math.min(1, 340 / Math.min(w, h));
   renderer.setSize(Math.round(w * sc), Math.round(h * sc), false); canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   camera.aspect = w / h; const hf = 78 * Math.PI / 180;
   camera.fov = w >= h ? 66 : Math.min(105, 2 * Math.atan(Math.tan(hf / 2) / camera.aspect) * 180 / Math.PI);
@@ -163,7 +163,7 @@ function buildChars() {
 $('nick').value = G.nick || CHARS[G.char].code;
 $('nick').oninput = () => { G.nick = $('nick').value.trim().slice(0, 12); localStorage.n64nick = G.nick; sendHello(); };
 const myName = () => (G.nick || CHARS[G.char].code).toUpperCase();
-function firstTap() { initAudio(); playMusic('lobby'); if (isTouch && !gyro.on) enableGyro(); }
+function firstTap() { initAudio(); playMusic('lobby'); if (isTouch && !gyro.on && (localStorage.n64ctrl || 'motion') === 'motion') enableGyro(); }
 $('btnJoin').onclick = () => { firstTap(); G.online = true; G.mode = 'lobby'; $('lobbyTitle').textContent = 'ONLINE LOBBY'; $('onlineBox').classList.remove('hidden'); $('roomPick').classList.remove('hidden'); $('roomInfo').classList.add('hidden'); $('hostBox').classList.add('hidden'); $('waitHost').classList.add('hidden'); buildChars(); show('lobby'); };
 $('btnBots').onclick = () => { firstTap(); leaveRoom(); G.online = false; G.isHost = true; G.mode = 'lobby'; $('lobbyTitle').textContent = 'PLAY VS BOTS'; $('onlineBox').classList.add('hidden'); $('hostBox').classList.remove('hidden'); $('waitHost').classList.add('hidden'); buildChars(); show('lobby'); };
 document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => { leaveRoom(); G.mode = 'title'; show('start'); });
@@ -175,7 +175,7 @@ $('btnStart').onclick = () => { readSettings(); hostStartMatch(); };
 $('hbScore').onclick = () => showScores($('scores').classList.contains('hidden'));
 $('btnCloseScores').onclick = () => showScores(false);
 $('hbMenu').onclick = () => { $('menu').classList.remove('hidden'); document.exitPointerLock && document.exitPointerLock(); };
-$('mResume').onclick = () => $('menu').classList.add('hidden');
+$('mResume').onclick = () => { $('menu').classList.add('hidden'); document.querySelectorAll('.padfocus').forEach(e => e.classList.remove('padfocus')); };
 $('mQuit').onclick = () => { $('menu').classList.add('hidden'); endLocal(); leaveRoom(); G.mode = 'title'; show('start'); playMusic('lobby'); };
 $('sens').value = gyro.sens; $('tsens').value = tsens; $('invertY').checked = invertY;
 $('sens').oninput = () => { gyro.sens = +$('sens').value; localStorage.n64sens = gyro.sens; };
@@ -595,19 +595,21 @@ const camTarget = new THREE.Vector3();
 function step() {
   requestAnimationFrame(step);
   const t = now(); let dt = Math.min(0.05, t - last); last = t;
+  if (G.mode !== 'game' || !G.running) { try { pollPad(dt); } catch (e) { } }
   if (G.mode === 'game' && G.running !== undefined && G.ents.size) {
     const p = me();
     if (p) {
       // look
+      if (typeof ctrlFrame === 'function') ctrlFrame(dt);
       p.yaw += input.lookDX; p.pitch = Math.max(-1.35, Math.min(1.35, p.pitch + input.lookDY)); input.lookDX = input.lookDY = 0;
       if (p.alive && !G.ended) {
-        let mx = input.mx, mz = input.mz; const k = input.keys;
+        let mx = input.mx + (input.padMx || 0), mz = input.mz + (input.padMz || 0); const k = input.keys;
         if (k.KeyW || k.ArrowUp) mz -= 1; if (k.KeyS || k.ArrowDown) mz += 1; if (k.KeyA) mx -= 1; if (k.KeyD) mx += 1; if (k.ArrowLeft) p.yaw += 2.5 * dt; if (k.ArrowRight) p.yaw -= 2.5 * dt;
         const m = Math.hypot(mx, mz); if (m > 1) { mx /= m; mz /= m; }
         const s = Math.sin(p.yaw), c = Math.cos(p.yaw);
         const wx = c * mx + (-s) * (-mz), wz = (-s) * mx + (-c) * (-mz);
-        const sp = moveEnt(p, wx, wz, input.jump || k.Space, dt); p.moving = sp > 0.5; p.walk += sp * dt;
-        if (input.fire || input.mouseFire || k.KeyF) { const w = W[p.weapon]; if (w.auto || !p.fireHeld) fire(p); p.fireHeld = true; } else p.fireHeld = false;
+        const sp = moveEnt(p, wx, wz, input.jump || input.padJump || k.Space, dt); p.moving = sp > 0.5; p.walk += sp * dt;
+        if (input.fire || input.mouseFire || input.padFire || k.KeyF) { const w = W[p.weapon]; if (w.auto || !p.fireHeld) fire(p); p.fireHeld = true; } else p.fireHeld = false;
         checkPickups(p);
       } else if (!p.alive && t - (p.deathT || t) > 3 && !G.ended) { respawn(p); $('deathScr').classList.add('hidden'); }
     }
@@ -641,7 +643,7 @@ function step() {
       flash.material.opacity = Math.max(0, flash.material.opacity - dt * 20); flash.rotation.z = Math.random() * 3;
       const inv = p.invis > t; if (vmGun) vmGun.traverse(o => { if (o.isMesh) { o.material.transparent = true; o.material.opacity = inv ? 0.35 : 1; } });
       // fog tint by area
-      const c = L.cellAt(p.pos.x, p.pos.z); const fc = c && c.th === 'basement' ? 0x1a0e04 : c && (c.th === 'clean' || c.th === 'long') ? 0x30302c : 0x101010; scene.fog.color.setHex(fc); scene.background.setHex(fc);
+      const c = L.cellAt(p.pos.x, p.pos.z); const fc = c && c.th === 'basement' ? 0x1a0e04 : c && (c.th === 'clean' || c.th === 'long') ? 0x2c3236 : c && c.th === 'storage' ? 0x161c1a : 0x141618; scene.fog.color.setHex(fc); scene.background.setHex(fc);
     }
     // fx
     for (const f of G.fx) { f.age = (f.age || 0) + dt; const k = f.age / f.life; if (f.grow) f.obj.scale.setScalar((f.obj.userData.s0 || (f.obj.userData.s0 = f.obj.scale.x)) + f.grow * k); if (f.fade && f.obj.material) f.obj.material.opacity = Math.max(0, 1 - k); if (k >= 1) { scene.remove(f.obj); f.obj.geometry && f.obj.geometry !== boxG && !f.obj.isSprite && f.obj.geometry.dispose(); } }
@@ -679,3 +681,79 @@ function pvLoop() {
 }
 pvLoop();
 window.__game.makeChar = makeChar; window.__game.THREE = THREE; window.__game.scene = scene;
+// ================= CONTROL CONFIGURATION (motion / dual stick / Bluetooth controller) =================
+const ctrl = { mode: localStorage.n64ctrl || 'motion', rsSens: +(localStorage.n64rs || 1.6), padSens: +(localStorage.n64ps || 1.8), dz: +(localStorage.n64dz || 0.15), rx: 0, ry: 0, padIdx: -1, prev: [], prompted: false };
+const HELP = { motion: 'Tilt/turn your phone to aim, drag on the right side to fine-tune. Joystick bottom-left moves.',
+  dual: 'Left stick moves/strafes, right stick aims. FIRE sits left of the right stick, JUMP and SWITCH above it.',
+  pad: 'Left stick move, right stick look, RT/R2 fire, A/Cross jump, Y/Triangle or RB next weapon, LB previous, Start = scores, Select/Back = menu. D-pad + A/B work in menus.' };
+function applyCtrl() {
+  localStorage.n64ctrl = ctrl.mode; $('ctrlMode').value = ctrl.mode; $('ctrlHelp').textContent = HELP[ctrl.mode];
+  document.body.classList.toggle('dual', ctrl.mode === 'dual'); document.body.classList.toggle('padon', ctrl.mode === 'pad' && ctrl.padIdx >= 0);
+  if (ctrl.mode !== 'motion' && gyro.on) { gyro.on = false; updGyroBtns(); }
+}
+$('ctrlMode').onchange = () => { ctrl.mode = $('ctrlMode').value; applyCtrl(); if (ctrl.mode === 'motion' && isTouch) enableGyro(); };
+$('rsSens').value = ctrl.rsSens; $('padSens').value = ctrl.padSens; $('padDz').value = ctrl.dz;
+$('rsSens').oninput = () => { ctrl.rsSens = +$('rsSens').value; localStorage.n64rs = ctrl.rsSens; };
+$('padSens').oninput = () => { ctrl.padSens = +$('padSens').value; localStorage.n64ps = ctrl.padSens; };
+$('padDz').oninput = () => { ctrl.dz = +$('padDz').value; localStorage.n64dz = ctrl.dz; };
+const openMenu = () => { $('menu').classList.remove('hidden'); $('mQuit').classList.toggle('hidden', G.mode !== 'game'); document.exitPointerLock && document.exitPointerLock(); };
+$('btnCtrl').onclick = $('btnCtrl2').onclick = openMenu; $('hbMenu').onclick = openMenu;
+// right virtual stick
+{ const rj = $('rjoy'), rk = $('rknob'); let id = null;
+  const mv = ev => { const r = rj.getBoundingClientRect(); let dx = (ev.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (ev.clientY - (r.top + r.height / 2)) / (r.height / 2); const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
+    rk.style.transform = `translate(${dx * r.width / 2.6}px,${dy * r.height / 2.6}px)`; ctrl.rx = dx; ctrl.ry = dy; };
+  rj.addEventListener('pointerdown', ev => { id = ev.pointerId; try { rj.setPointerCapture(id); } catch (e) { } mv(ev); ev.preventDefault(); });
+  rj.addEventListener('pointermove', ev => { if (ev.pointerId === id) mv(ev); });
+  const end = ev => { if (ev.pointerId !== id) return; id = null; ctrl.rx = ctrl.ry = 0; rk.style.transform = ''; }; rj.addEventListener('pointerup', end); rj.addEventListener('pointercancel', end); }
+// gamepad
+const dzf = v => Math.abs(v) < ctrl.dz ? 0 : Math.sign(v) * (Math.abs(v) - ctrl.dz) / (1 - ctrl.dz);
+function getPad() { const ps = navigator.getGamepads ? navigator.getGamepads() : []; for (const p of ps) if (p && p.connected !== false) return p; return null; }
+window.addEventListener('gamepadconnected', ev => { ctrl.padIdx = ev.gamepad.index; $('padStatus').textContent = 'Connected: ' + ev.gamepad.id.slice(0, 40);
+  if (ctrl.mode !== 'pad') $('padPrompt').classList.remove('hidden'); else { applyCtrl(); toast('Controller connected'); } });
+window.addEventListener('gamepaddisconnected', () => { ctrl.padIdx = -1; $('padStatus').textContent = 'No controller detected'; applyCtrl(); toast('Controller disconnected'); });
+$('padYes').onclick = () => { ctrl.mode = 'pad'; $('padPrompt').classList.add('hidden'); applyCtrl(); toast('Using controller'); };
+$('padNo').onclick = () => $('padPrompt').classList.add('hidden');
+function visibleScreen() { for (const id of ['padPrompt', 'menu', 'scores', 'lobby', 'start']) { const e = $(id); if (!e.classList.contains('hidden')) return e; } return null; }
+function focusables(root) { return [...root.querySelectorAll('button,select,input,.char')].filter(e => e.offsetParent !== null && !e.disabled); }
+let navIdx = 0, navT = 0;
+function menuNav(btn, ax, ay) {
+  const root = visibleScreen(); if (!root) return false; const f = focusables(root); if (!f.length) return true;
+  navIdx = Math.min(navIdx, f.length - 1); const t = now(); let moved = 0;
+  if ((btn(12) || ay < -0.6) && t > navT) moved = -1; if ((btn(13) || ay > 0.6) && t > navT) moved = 1;
+  if (moved) { navIdx = (navIdx + moved + f.length) % f.length; navT = t + 0.22; }
+  const el = f[navIdx]; document.querySelectorAll('.padfocus').forEach(e => e !== el && e.classList.remove('padfocus')); el.classList.add('padfocus'); if (moved) el.scrollIntoView({ block: 'nearest' });
+  const lr = (btn(15) || ax > 0.6) ? 1 : (btn(14) || ax < -0.6) ? -1 : 0;
+  if (lr && t > navT) { navT = t + 0.18;
+    if (el.tagName === 'SELECT') { el.selectedIndex = Math.max(0, Math.min(el.options.length - 1, el.selectedIndex + lr)); el.dispatchEvent(new Event('change')); }
+    else if (el.type === 'range') { el.value = +el.value + lr * (+el.step || 0.1) * 2; el.dispatchEvent(new Event('input')); }
+    else { navIdx = (navIdx + lr + f.length) % f.length; } }
+  if (pressed(0)) { if (el.type === 'checkbox') { el.checked = !el.checked; el.dispatchEvent(new Event('change')); } else if (el.tagName === 'INPUT' && el.type !== 'range') el.focus(); else el.click(); }
+  if (pressed(1)) { if (root.id === 'padPrompt') $('padNo').click(); else if (root.id === 'menu') $('mResume').click(); else if (root.id === 'scores') showScores(false); else { const b = root.querySelector('[data-back]'); if (b) b.click(); } navIdx = 0; }
+  return true;
+}
+let padBtns = [];
+const pressed = i => padBtns[i] && !ctrl.prev[i];
+function pollPad(dt) {
+  const pad = getPad(); if (!pad) { if (ctrl.padIdx >= 0) { ctrl.padIdx = -1; applyCtrl(); } return; }
+  if (ctrl.padIdx < 0) { ctrl.padIdx = pad.index; $('padStatus').textContent = 'Connected: ' + pad.id.slice(0, 40); if (ctrl.mode !== 'pad' && !ctrl.prompted) { ctrl.prompted = true; $('padPrompt').classList.remove('hidden'); } applyCtrl(); }
+  padBtns = pad.buttons.map(b => b.pressed || b.value > 0.4); const btn = i => !!padBtns[i];
+  const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+  const inGame = G.mode === 'game' && G.running && $('menu').classList.contains('hidden') && $('padPrompt').classList.contains('hidden') && $('scores').classList.contains('hidden');
+  if (!inGame) { menuNav(btn, ax, ay); if (G.mode === 'game' && pressed(9) && !$('scores').classList.contains('hidden') && !G.ended) showScores(false); }
+  else if (ctrl.mode === 'pad' || $('padPrompt').classList.contains('hidden')) {
+    const p = me();
+    input.padMx = dzf(ax); input.padMz = dzf(ay);
+    const lx = dzf(pad.axes[2] || 0), ly = dzf(pad.axes[3] || 0); const sp = ctrl.padSens * 2.4 * dt;
+    input.lookDX -= Math.sign(lx) * lx * lx * sp; input.lookDY -= Math.sign(ly) * ly * ly * sp * (invertY ? -1 : 1);
+    input.padFire = btn(7) || (pad.buttons[7] && pad.buttons[7].value > 0.3); input.padJump = btn(0);
+    if (p && (pressed(3) || pressed(5))) switchWeapon(p, 1); if (p && pressed(4)) switchWeapon(p, -1);
+    if (pressed(9)) showScores(true); if (pressed(8)) openMenu();
+  }
+  ctrl.prev = padBtns.slice();
+}
+function ctrlFrame(dt) {
+  pollPad(dt);
+  if (ctrl.mode === 'dual' && (ctrl.rx || ctrl.ry)) { const sp = ctrl.rsSens * 2.6 * dt; input.lookDX -= Math.sign(ctrl.rx) * ctrl.rx * ctrl.rx * sp; input.lookDY -= Math.sign(ctrl.ry) * ctrl.ry * ctrl.ry * sp * (invertY ? -1 : 1); }
+}
+applyCtrl();
+window.__game.ctrl = ctrl;
