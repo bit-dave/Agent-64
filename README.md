@@ -1,5 +1,5 @@
 # AGENT 64: THE COMPLEX
-An N64-style first-person shooter for phones. You can play online with friends or offline against bots. Made by Zed Head Games.
+An N64-style first-person shooter for phones. You can play online with friends or offline against bots. Made by Zed Head Games.  
 
 ## Put it online (GitHub Pages, free)
 1. Sign in at github.com, then click **+ > New repository**. Name it something like `agent64`, set it to **Public**, and click **Create repository**.
