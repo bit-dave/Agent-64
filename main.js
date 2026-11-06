@@ -33,13 +33,23 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color(0x101010); s
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 60); scene.add(camera);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x554433, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(0.3, 1, 0.5); scene.add(sun);
 L.buildLevel(scene); L.buildNav();
+const RQ = { low: 220, med: 280, high: 360 }; const rq = { mode: localStorage.n64rq || 'auto', base: 300, fpsOn: localStorage.n64fps === '1' };
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = window.navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+function viewSize() { const vv = window.visualViewport; const w = Math.round(vv ? vv.width : window.innerWidth), h = Math.round(Math.min(window.innerHeight, vv ? vv.height : 1e9)); return [w, h]; }
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight; const sc = window.__hiRes ? 1 : Math.min(1, 340 / Math.min(w, h));
+  const [w, h] = viewSize(); const target = rq.mode === 'auto' ? rq.base : RQ[rq.mode];
+  const sc = window.__hiRes ? 1 : Math.min(1, target / Math.min(w, h));
+  document.documentElement.style.setProperty('--appH', h + 'px');
+  // in Safari (not home-screen) keep controls a little clear of the bottom toolbar edge
+  document.documentElement.style.setProperty('--botPad', isIOS && !standalone ? '6px' : '0px');
   renderer.setSize(Math.round(w * sc), Math.round(h * sc), false); canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   camera.aspect = w / h; const hf = 78 * Math.PI / 180;
   camera.fov = w >= h ? 66 : Math.min(105, 2 * Math.atan(Math.tan(hf / 2) / camera.aspect) * 180 / Math.PI);
   camera.updateProjectionMatrix(); gyro.reset = true;
 }
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 window.addEventListener('resize', resize);
 
 // ---------------- MODELS ----------------
@@ -516,7 +526,8 @@ function moveEnt(e, wx, wz, jump, dt, speed = 6.5) {
 }
 
 // ---------------- BOT AI ----------------
-function canSee(a, b) { const o = eyePos(a), t = eyePos(b, new THREE.Vector3()); t.y -= 0.4; const d = o.distanceTo(t); if (d > 45) return false; const dir = t.clone().sub(o).normalize(); return L.rayWorld(o, dir, d) >= d - 0.3; }
+const csO = new THREE.Vector3(), csT = new THREE.Vector3(), csD = new THREE.Vector3();
+function canSee(a, b) { const o = eyePos(a, csO), t = eyePos(b, csT); t.y -= 0.4; const d = o.distanceTo(t); if (d > 45) return false; const dir = csD.copy(t).sub(o).normalize(); return L.rayWorld(o, dir, d) >= d - 0.3; }
 function nearestItem(e, pred) { let best = null, bd = 1e9; for (const it of G.items) { if (!it.avail || !pred(it)) continue; const d = Math.hypot(it.x - e.pos.x, it.z - e.pos.z) + Math.abs(it.y - e.pos.y) * 3; if (d < bd) { bd = d; best = it; } } return best; }
 function botUpdate(e, dt) {
   const D = BOTDIFF[e.diff] || BOTDIFF.normal, ai = e.ai, t = now();
@@ -657,11 +668,11 @@ function step() {
   } else if (G.mode !== 'game') { // attract-mode camera flythrough behind menus
     const a = t * 0.08; camera.position.set(22 + Math.cos(a) * 6, 3, 4 + Math.sin(a) * 6); camera.rotation.set(-0.15, a * 1.0 + 1.2, 0, 'YXZ'); vm.visible = false;
   }
-  renderer.render(scene, camera);
+  renderer.render(scene, camera); perfTick(t, dt);
 }
 function updHud(p, t) {
   $('hpBar').style.width = Math.max(0, p.hp) + '%'; $('arBar').style.width = p.armor + '%'; $('hpTxt').textContent = Math.max(0, Math.round(p.hp)) + (p.armor ? ' +' + p.armor : '');
-  const w = W[p.weapon]; $('wName').textContent = w.name; $('wAmmo').textContent = w.melee ? '' : p.ammo[p.weapon] || 0;
+  const w = W[p.weapon]; $('wName').textContent = w.name; $('wAmmo').textContent = w.melee ? '' : p.ammo[p.weapon] || 0; if (typeof updStrip === 'function' && SHORT) updStrip(p);
   if (G.endAt) { const r = Math.max(0, G.endAt - t); $('timer').textContent = Math.floor(r / 60) + ':' + String(Math.floor(r % 60)).padStart(2, '0'); } else $('timer').textContent = '';
   $('score').textContent = 'K ' + p.frags + (G.settings.frag ? '/' + G.settings.frag : '');
   const pu = []; if (p.inv > t) pu.push('INVINCIBLE ' + Math.ceil(p.inv - t)); if (p.invis > t) pu.push('INVISIBLE ' + Math.ceil(p.invis - t)); $('powerups').innerHTML = pu.join('<br>') + '<div class="small" style="color:#9ab070">' + L.roomName(p.pos.x, p.pos.z) + '</div>';
@@ -674,7 +685,7 @@ const pv = { r: null, scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera
 pv.scene.add(new THREE.HemisphereLight(0xffffff, 0x445533, 2.0)); const pvl = new THREE.DirectionalLight(0xffffff, 1.2); pvl.position.set(1, 2, 3); pv.scene.add(pvl);
 pv.cam.position.set(0, 0.95, 3.75); pv.cam.lookAt(0, 0.92, 0);
 function pvLoop() {
-  requestAnimationFrame(pvLoop); if ($('lobby').classList.contains('hidden')) return;
+  requestAnimationFrame(pvLoop); if ($('lobby').classList.contains('hidden')) { if (pv.r) { pv.r.dispose(); pv.r.forceContextLoss(); pv.r = null; pv.ci = -1; const oc = $('preview'), nc = oc.cloneNode(false); oc.replaceWith(nc); } return; }
   if (!pv.r) { pv.r = new THREE.WebGLRenderer({ canvas: $('preview'), antialias: false, alpha: true }); pv.r.setPixelRatio(1); pv.r.setSize(120, 150, false); pv.r.outputColorSpace = THREE.SRGBColorSpace; }
   if (pv.ci !== G.char) { if (pv.model) pv.scene.remove(pv.model); pv.model = makeChar(G.char); const e = { mesh: pv.model, weapon: 'pistol' }; setCharGun(e); pv.scene.add(pv.model); pv.ci = G.char; }
   pv.model.rotation.y = Math.sin(now() * 0.8) * 1.2; pv.r.render(pv.scene, pv.cam);
@@ -757,3 +768,28 @@ function ctrlFrame(dt) {
 }
 applyCtrl();
 window.__game.ctrl = ctrl;
+window.__game.renderer = renderer; window.__game.camera = camera;
+
+// ================= v5: weapon strip, FPS counter, adaptive render quality =================
+var SHORT = { knife: 'KNF', pistol: 'PST', shotgun: 'SHT', mg: 'MG', laser: 'LSR', rocket: 'RKT', grenade: 'GRN', mine: 'MIN' };
+var stripKey = '';
+function updStrip(p) {
+  const have = WORDER.filter(k => p.ammo[k] > 0); const key = have.join() + '|' + p.weapon; if (key === stripKey) return; stripKey = key;
+  const el = $('wstrip'); el.innerHTML = '';
+  for (const k of have) { const b = document.createElement('button'); b.textContent = SHORT[k] || W[k].name.slice(0, 3); if (k === p.weapon) b.className = 'cur';
+    b.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); const q = me(); if (q && q.ammo[k] > 0) { setWeapon(q, k); updStrip(q); } }); el.appendChild(b); }
+}
+var perf = { n: 0, acc: 0, fps: 60, lastAdj: 0 };
+function perfTick(t, dt) { if (!perf) return;
+  perf.n++; perf.acc += dt; if (perf.acc < 1) return;
+  perf.fps = perf.n / perf.acc; perf.n = 0; perf.acc = 0;
+  if (rq.fpsOn) { $('fps').textContent = Math.round(perf.fps) + ' FPS  ' + renderer.domElement.width + 'x' + renderer.domElement.height + '  ' + renderer.info.render.calls + ' dc'; }
+  if (rq.mode === 'auto' && G.mode === 'game' && t - perf.lastAdj > 2) {
+    if (perf.fps < 40 && rq.base > 200) { rq.base = Math.max(200, Math.round(rq.base * 0.85)); perf.lastAdj = t; resize(); }
+    else if (perf.fps > 57 && rq.base < 340) { rq.base = Math.min(340, rq.base + 20); perf.lastAdj = t; resize(); }
+  }
+}
+function applyRq() { $('rq').value = rq.mode; $('fpsOn').checked = rq.fpsOn; $('fps').classList.toggle('hidden', !rq.fpsOn); resize(); }
+$('rq').onchange = () => { rq.mode = localStorage.n64rq = $('rq').value; applyRq(); };
+$('fpsOn').onchange = () => { rq.fpsOn = $('fpsOn').checked; localStorage.n64fps = rq.fpsOn ? '1' : '0'; applyRq(); };
+applyRq(); window.__game.rq = rq; window.__game.perf = perf;

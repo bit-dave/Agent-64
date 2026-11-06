@@ -52,3 +52,10 @@ An N64-style first-person shooter for phones. You can play online with friends o
    - Menus: D-pad or left stick to move, A select, B back, left/right to change options
    - Touch controls hide while a pad is active; connecting a pad offers to switch automatically.
    - Settings: sensitivity, invert Y, deadzone.
+
+## v5 (iPhone fixes)
+- **No forced rotation.** The game always renders in the browser's real orientation. With Portrait Orientation Lock ON you play in portrait (fully supported); turn the lock OFF to play in landscape.
+- **Safe areas:** HUD and controls respect the notch / home bar (`viewport-fit=cover` + `env(safe-area-inset-*)`), and size to the *visible* viewport (`visualViewport` / `100dvh`) so Safari's toolbar can't cover them.
+- **Weapon strip:** owned weapons show as a compact tappable row (KNF PST SHT MG LSR GRN RKT MIN) under the top bar; current weapon + ammo sits above JUMP. ↺ still cycles.
+- **Performance:** Settings → PERFORMANCE → Render quality *Auto* (default; lowers resolution when FPS < 40, raises it back when smooth) / Low / Medium / High, plus a *Show FPS* counter. The lobby preview's 2nd WebGL context is released when you leave the lobby; bot line-of-sight checks no longer allocate.
+- **Full screen:** Share → *Add to Home Screen* launches without Safari bars.
